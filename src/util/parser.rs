@@ -6,6 +6,7 @@ pub struct Parser {
     position: usize
 }
 
+#[allow(unused)]
 impl Parser {
     pub fn new<T>(input: T) -> Self
         where T: ToString {
