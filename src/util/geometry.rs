@@ -417,6 +417,15 @@ impl Bounds {
         }
     }
 
+    pub fn try_from_tlbr(top: usize, left: usize, bottom: usize, right: usize) -> Result<Self, String> {
+        Ok(Self::from_tlbr(
+            top.try_into().map_err(|e| format!("{}", e))?,
+            left.try_into().map_err(|e| format!("{}", e))?,
+            bottom.try_into().map_err(|e| format!("{}", e))?,
+            right.try_into().map_err(|e| format!("{}", e))?,
+        ))
+    }
+
     pub fn from_size(width: usize, height: usize) -> Self {
         Self { top: 0, left: 0, width, height }
     }
