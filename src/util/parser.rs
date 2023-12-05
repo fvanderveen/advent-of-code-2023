@@ -88,4 +88,12 @@ impl Parser {
         let rest = &self.input[self.position..self.input.len()];
         rest.is_empty() || rest.chars().all(|c| c.is_whitespace())
     }
+    
+    pub fn ensure_exhausted(&self) -> Result<(), String> {
+        if self.is_exhausted() { 
+            Ok(())
+        } else {
+            Err(format!("Unexpected extra content: '{}'", self.input[self.position..].trim()))
+        }
+    }
 }
