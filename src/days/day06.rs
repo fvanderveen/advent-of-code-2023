@@ -19,7 +19,7 @@ fn puzzle1(input: &String) {
 fn puzzle2(input: &String) {
     let race = input.parse::<Race>().unwrap();
 
-    println!("Puzzle 2 result: {}", race.get_ways_to_win());
+    println!("Puzzle 2 result: {}", race.get_ways_to_win_abc());
 }
 
 #[derive(Eq, PartialEq, Debug, Default, Clone)]
@@ -82,6 +82,24 @@ impl Race {
             .take_while(|dist| self.record.lt(dist)) // take while dist > record
             .count()
     }
+
+    fn get_ways_to_win_abc(&self) -> usize {
+        // Since the formula is in the AX²+BX+C = 0 format
+        // Using the hold-time as X:
+        // (T-X)*X = R :> -1X²+TX = R :> -1X²+TX-R = 0 (A = -1, B = T, C = -R)
+        let a = -1f64;
+        let b = self.duration as f64;
+        let c = -1f64 * self.record as f64;
+        let d = b.powf(2f64) - (4f64*a*c);
+        let x1 = (-b - d.sqrt()) / (a+a);
+        let x2 = (-b + d.sqrt()) / (a+a);
+
+        let left = x1.min(x2);
+        let right = x1.max(x2);
+
+        // The first valid number is the left ceiled, the last is right floored.
+        ((left.ceil() as usize)..=(right.floor() as usize)).count()
+    }
 }
 
 impl FromStr for Race {
@@ -134,6 +152,13 @@ mod tests {
         let race = TEST_INPUT.parse::<Race>().unwrap();
 
         assert_eq!(race.get_ways_to_win(), 71503);
+    }
+
+    #[test]
+    fn test_race_ways_to_win_abc_p2() {
+        let race = TEST_INPUT.parse::<Race>().unwrap();
+
+        assert_eq!(race.get_ways_to_win_abc(), 71503);
     }
 
     const TEST_INPUT: &str = "\
