@@ -10,6 +10,8 @@ mod day05;
 use day05::DAY5;
 mod day06;
 use day06::DAY6;
+mod day07;
+use day07::DAY7;
 // « add day import »
 
 pub struct Day {
@@ -25,6 +27,7 @@ pub fn get_day(day: i32) -> Result<Day, String> {
         4 => Ok(DAY4),
         5 => Ok(DAY5),
         6 => Ok(DAY6),
+        7 => Ok(DAY7),
         // « add day match »
         _ => Err(format!("No implementation yet for day {}", day))
     }
