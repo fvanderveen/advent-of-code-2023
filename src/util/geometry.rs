@@ -486,7 +486,7 @@ impl<T> Default for Grid<T> where T: Clone + Default {
 }
 
 #[repr(u8)]
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 pub enum Directions {
     Top = 1,
     Right = 2,
@@ -567,6 +567,10 @@ impl<T> Grid<T> where T: Clone {
 
     pub fn get_adjacent_points(&self, p: &Point, directions: Directions) -> Vec<Point> {
         p.get_points_around(directions).into_iter().filter(|p| self.bounds.contains(p)).collect()
+    }
+
+    pub fn get_adjacent_entries(&self, p: &Point, directions: Directions) -> Vec<(Point, T)> {
+        self.get_adjacent_points(p, directions).into_iter().filter_map(|p| self.get(&p).map(|i| (p, i))).collect()
     }
 
     pub fn get_in_direction(&self, p: &Point, direction: Directions) -> Vec<T> {
