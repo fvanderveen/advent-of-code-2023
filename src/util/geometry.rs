@@ -94,6 +94,7 @@ impl Add<&Point> for Point {
         Point { x: self.x + rhs.x, y: self.y + rhs.y }
     }
 }
+
 impl Add<Point> for Point {
     type Output = Point;
 
@@ -101,6 +102,7 @@ impl Add<Point> for Point {
         self + &rhs
     }
 }
+
 impl Add<(isize, isize)> for Point {
     type Output = Point;
 
@@ -108,6 +110,7 @@ impl Add<(isize, isize)> for Point {
         self + Point::from(rhs)
     }
 }
+
 impl Add<Point> for Vec<Point> {
     type Output = Vec<Point>;
 
@@ -137,15 +140,15 @@ mod point_tests {
     fn test_format() {
         assert_eq!(format!("{}", Point { x: 5, y: -10 }), "(5,-10)");
     }
-    
+
     #[test]
     fn test_ord() {
         let mut points = vec![
             Point { x: 12, y: 1 },
-            Point { x: 2, y: 5},
+            Point { x: 2, y: 5 },
             Point { x: 4, y: 3 },
             Point { x: 1, y: 1 },
-            Point { x: 5, y: 3 }
+            Point { x: 5, y: 3 },
         ];
         points.sort();
         assert_eq!(points, vec![
@@ -153,14 +156,14 @@ mod point_tests {
             Point { x: 12, y: 1 },
             Point { x: 4, y: 3 },
             Point { x: 5, y: 3 },
-            Point { x: 2, y: 5},
+            Point { x: 2, y: 5 },
         ]);
     }
 
     #[test]
     fn test_get_points_around() {
-        assert_eq!(Point::from((3, 2)).get_points_around(Directions::NonDiagonal), vec![(3,1).into(), (4,2).into(), (3,3).into(), (2,2).into()]);
-        assert_eq!(Point::from((3, 2)).get_points_around(Directions::Diagonal), vec![(2,1).into(), (4,1).into(), (4,3).into(), (2,3).into()]);
+        assert_eq!(Point::from((3, 2)).get_points_around(Directions::NonDiagonal), vec![(3, 1).into(), (4, 2).into(), (3, 3).into(), (2, 2).into()]);
+        assert_eq!(Point::from((3, 2)).get_points_around(Directions::Diagonal), vec![(2, 1).into(), (4, 1).into(), (4, 3).into(), (2, 3).into()]);
     }
 
     #[test]
@@ -187,7 +190,7 @@ impl fmt::Display for Point3D {
 }
 
 impl From<(isize, isize, isize)> for Point3D {
-    fn from((x,y,z): (isize, isize, isize)) -> Self {
+    fn from((x, y, z): (isize, isize, isize)) -> Self {
         Self { x, y, z }
     }
 }
@@ -256,7 +259,7 @@ impl Point3D {
             for y in -1..=1 {
                 for x in -1..=1 {
                     if x == 0 && y == 0 && z == 0 { continue; }
-                    points.push((self.x + x,self.y + y, self.z + z).into());
+                    points.push((self.x + x, self.y + y, self.z + z).into());
                 }
             }
         }
@@ -268,10 +271,11 @@ impl Point3D {
 #[cfg(test)]
 mod point3d_tests {
     use crate::util::geometry::{Point, Point3D};
+
     #[test]
     fn test_from_str() {
         assert_eq!("3,5,2".parse(), Ok(Point3D { x: 3, y: 5, z: 2 }));
-        assert_eq!("3,-5,0".parse(), Ok(Point3D { x: 3, y: -5, z:0 }));
+        assert_eq!("3,-5,0".parse(), Ok(Point3D { x: 3, y: -5, z: 0 }));
         assert_eq!("422,-2345,-99".parse(), Ok(Point3D { x: 422, y: -2345, z: -99 }));
     }
 
@@ -429,7 +433,7 @@ impl Bounds {
     pub fn from_size(width: usize, height: usize) -> Self {
         Self { top: 0, left: 0, width, height }
     }
-    
+
     pub fn grow(&mut self, by: isize) {
         self.top -= by;
         self.left -= by;
@@ -456,16 +460,16 @@ impl Bounds {
     pub fn contains(&self, pixel: &Point) -> bool {
         self.x().contains(&pixel.x) && self.y().contains(&pixel.y)
     }
-    
+
     pub fn points(&self) -> Vec<Point> {
         let mut points = vec![];
-        
+
         for y in self.y() {
             for x in self.x() {
                 points.push((x, y).into());
             }
         }
-        
+
         points
     }
 }
@@ -480,7 +484,7 @@ impl<T> Default for Grid<T> where T: Clone + Default {
     fn default() -> Self {
         Grid {
             bounds: Bounds::default(),
-            cells: HashMap::default()
+            cells: HashMap::default(),
         }
     }
 }
@@ -507,7 +511,7 @@ pub enum Directions {
     All = Directions::NonDiagonal as u8 | Directions::Diagonal as u8,
 }
 
-impl Directions {    
+impl Directions {
     pub fn has(&self, value: Directions) -> bool {
         (self.clone() as u8 & value as u8) != 0
     }
@@ -525,7 +529,7 @@ impl<T> Grid<T> where T: Clone {
         let bounds = Bounds::from_tlbr(top, left, bottom, right);
         Self { bounds, cells }
     }
-    
+
     pub fn empty() -> Self {
         Self { bounds: Bounds::default(), cells: HashMap::new() }
     }
@@ -533,7 +537,7 @@ impl<T> Grid<T> where T: Clone {
     pub fn get(&self, p: &Point) -> Option<T> {
         self.cells.get(p).map(|x| x.clone())
     }
-    
+
     pub fn has(&self, p: &Point) -> bool {
         self.cells.contains_key(p)
     }
@@ -560,7 +564,15 @@ impl<T> Grid<T> where T: Clone {
             self.bounds = Bounds::from_tlbr(top, left, bottom, right);
         }
     }
-    
+
+    pub fn get_row(&self, row: isize) -> Vec<T> {
+        self.bounds.x().filter_map(|x| self.get(&Point::from((x, row)))).collect()
+    }
+
+    pub fn get_column(&self, column: isize) -> Vec<T> {
+        self.bounds.y().filter_map(|y| self.get(&Point::from((column, y)))).collect()
+    }
+
     pub fn get_adjacent(&self, p: &Point, directions: Directions) -> Vec<T> {
         self.get_adjacent_points(p, directions).iter().filter_map(|p| self.get(p)).collect()
     }
@@ -591,7 +603,7 @@ impl<T> Grid<T> where T: Clone {
                     points.push(current);
                 }
                 points
-            },
+            }
             _ => vec![]
         }
     }
@@ -611,7 +623,7 @@ impl<T> Grid<T> where T: Clone {
     pub fn values(&self) -> Vec<T> {
         self.points().iter().filter_map(|p| self.get(p)).collect()
     }
-    
+
     pub fn entries(&self) -> Vec<(Point, T)> {
         self.cells.iter().map(|(p, t)| (p.clone(), t.clone())).collect()
     }
@@ -778,9 +790,21 @@ mod grid_tests {
     #[test]
     fn test_get_points_in_direction() {
         let grid = get_example_grid();
-        assert_eq!(grid.get_points_in_direction(&(0,0).into(), Directions::Left), vec![]);
-        assert_eq!(grid.get_points_in_direction(&(1,0).into(), Directions::Left), vec![(0, 0).into()]);
-        assert_eq!(grid.get_points_in_direction(&(2,0).into(), Directions::Left), vec![(1,0).into(), (0, 0).into()]);
+        assert_eq!(grid.get_points_in_direction(&(0, 0).into(), Directions::Left), vec![]);
+        assert_eq!(grid.get_points_in_direction(&(1, 0).into(), Directions::Left), vec![(0, 0).into()]);
+        assert_eq!(grid.get_points_in_direction(&(2, 0).into(), Directions::Left), vec![(1, 0).into(), (0, 0).into()]);
+    }
+
+    #[test]
+    fn test_get_row() {
+        assert_eq!(get_example_grid().get_row(0), vec![2, 1, 9, 9, 9, 4, 3, 2, 1, 0]);
+        assert_eq!(get_example_grid().get_row(3), vec![8, 7, 6, 7, 8, 9, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn test_get_column() {
+        assert_eq!(get_example_grid().get_column(0), vec![2, 3, 9, 8, 9]);
+        assert_eq!(get_example_grid().get_column(5), vec![4, 9, 8, 9, 6]);
     }
 
     #[test]
@@ -798,25 +822,25 @@ mod grid_tests {
         grid.set((2, 3).into(), 42);
         assert_eq!(grid.bounds, Bounds { top: 3, left: 2, width: 1, height: 1 });
         assert_eq!(grid.points(), vec![
-            (2,3).into()
+            (2, 3).into()
         ]);
 
-        grid.set((1,2).into(), 22);
+        grid.set((1, 2).into(), 22);
         assert_eq!(grid.bounds, Bounds { top: 2, left: 1, width: 2, height: 2 });
         assert_eq!(grid.points(), vec![
-            (1,2).into(), (2,2).into(),
-            (1,3).into(), (2,3).into()
+            (1, 2).into(), (2, 2).into(),
+            (1, 3).into(), (2, 3).into(),
         ]);
 
         grid.set((-2, -2).into(), 12);
         assert_eq!(grid.bounds, Bounds { top: -2, left: -2, width: 5, height: 6 });
         assert_eq!(grid.points(), vec![
-            (-2,-2).into(), (-1,-2).into(), (0,-2).into(), (1,-2).into(), (2,-2).into(),
-            (-2,-1).into(), (-1,-1).into(), (0,-1).into(), (1,-1).into(), (2,-1).into(),
-            (-2,0).into(), (-1,0).into(), (0,0).into(), (1,0).into(), (2,0).into(),
-            (-2,1).into(), (-1,1).into(), (0,1).into(), (1,1).into(), (2,1).into(),
-            (-2,2).into(), (-1,2).into(), (0,2).into(), (1,2).into(), (2,2).into(),
-            (-2,3).into(), (-1,3).into(), (0,3).into(), (1,3).into(), (2,3).into()
+            (-2, -2).into(), (-1, -2).into(), (0, -2).into(), (1, -2).into(), (2, -2).into(),
+            (-2, -1).into(), (-1, -1).into(), (0, -1).into(), (1, -1).into(), (2, -1).into(),
+            (-2, 0).into(), (-1, 0).into(), (0, 0).into(), (1, 0).into(), (2, 0).into(),
+            (-2, 1).into(), (-1, 1).into(), (0, 1).into(), (1, 1).into(), (2, 1).into(),
+            (-2, 2).into(), (-1, 2).into(), (0, 2).into(), (1, 2).into(), (2, 2).into(),
+            (-2, 3).into(), (-1, 3).into(), (0, 3).into(), (1, 3).into(), (2, 3).into(),
         ]);
     }
 }
