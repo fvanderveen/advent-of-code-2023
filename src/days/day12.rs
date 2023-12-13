@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap};
 use std::str::FromStr;
 use crate::days::Day;
 use crate::util::collection::CollectionExtension;
@@ -58,62 +58,65 @@ impl SpringLine {
         result
     }
 
-    fn get_valid_permutations(&self) -> usize {
-        // Given the broken_groups (ordered), find how many permutations are possible for broken springs to fill unknown
-        // spots.
-        // E.g. .??..??...?##. 1,1,3
-        // 4 mutations, as the '3' group can only succeed by filling the last unknown, but both 1 groups can be in two spots.
-        // For ?#?#?#?#?#?#?#? 1,3,1,6
-        // We can deduce the first '?' needs to be operational (otherwise becomes ##, which cannot be). The same holds for the second.
-        // .#.#?#?#?#?#?#? from the second '#', we need to make 3 happen, so the third and fourth '?' are also known
-        // .#.###.#.###### The 1 and 6 then kinda follow the same.
-        // As such, we should be able to build this by doing a slightly smarter BFS.
-        // We can check for each '?' if it could be a '.' or '#', and if so, continue with the options.
+    fn get_group_state(&self, springs: &[Spring]) -> Option<(usize, usize)> {
+        // see until where the groups match the expected ones
+        // check if we can still fix the unexpected one
+        // (Might need similar logic so we still know if we're in a group though)
+        let mut current_group: usize = 0;
+        let mut group_index= 0;
 
-        let mut permutations = 0;
-        let mut queue: VecDeque<Vec<Spring>> = VecDeque::from([self.springs.clone()]);
-
-        'main: loop {
-            let current = match queue.pop_front() {
-                Some(v) => v,
-                None => break 'main
-            };
-
-            // Given current, take the first next unknown, and check the options. Push valid options on the queue.
-            // If no valid options, this route is bust and we continue.
-            // If no unknowns, and the list is valid, add a permutation
-            if let Some(index) = current.iter().position(|s| Spring::Unknown.eq(s)) {
-                // see until where the groups match the expected ones
-                // check if we can still fix the unexpected one
-                // (Might need similar logic so we still know if we're in a group though)
-                let mut current_group: usize = 0;
-                let mut group_index= 0;
-
-                // We take unknown as operational for the sake of this function.
-                for spring in &current[0..index] {
-                    match spring {
-                        // Note: technically unknown shouldn't happen, but we keep rust happy.
-                        Spring::Operational | Spring::Unknown if current_group > 0 => {
-                            // We're adding data without looking ahead, we might end up with an invalid state, so validate
-                            // the group size against the target, rejecting this branch if failed:
-                            match self.broken_groups.get(group_index) {
-                                None => continue 'main,
-                                Some(v) if *v != current_group => continue 'main,
-                                Some(_) => { } // Group is valid
-                            }
-
-                            group_index += 1;
-                            current_group = 0;
-                        },
-                        Spring::Operational | Spring::Unknown => { },
-                        Spring::Broken => { current_group += 1 },
+        // We take unknown as operational for the sake of this function.
+        for spring in springs {
+            match spring {
+                Spring::Operational if current_group > 0 => {
+                    // We're adding data without looking ahead, we might end up with an invalid state, so validate
+                    // the group size against the target, rejecting this branch if failed:
+                    match self.broken_groups.get(group_index) {
+                        None => return None,
+                        Some(v) if *v != current_group => return None,
+                        Some(_) => { } // Group is valid
                     }
-                }
 
-                let group_target = *self.broken_groups.get(group_index).unwrap_or(&0);
+                    group_index += 1;
+                    current_group = 0;
+                },
+                Spring::Operational => { },
+                Spring::Broken if group_index >= self.broken_groups.len() => return None, // No more broken groups, reject
+                Spring::Broken if self.broken_groups[group_index] <= current_group => return None, // No more space in the curren group
+                Spring::Broken => { current_group += 1 },
+                Spring::Unknown => return None
+            }
+        }
+
+        Some((current_group, group_index))
+    }
+
+    fn get_valid_permutations(&self) -> usize {
+        // Depth first, with cache.
+        // Cache based on (index, group_index, current_group) storing the combinations found from that point.
+        #[derive(Eq, PartialEq, Hash, Debug)]
+        struct PermutationsKey { index: usize, group_index: usize, current_group: usize }
+        type PermutationsCache = HashMap<PermutationsKey, usize>;
+
+        let mut cache: PermutationsCache = PermutationsCache::new();
+
+        fn get_permutations(line: &SpringLine, current: Vec<Spring>, cache: &mut PermutationsCache) -> usize {
+            if let Some(index) = current.iter().position(|s| Spring::Unknown.eq(s)) {
+                let (current_group, group_index) = match line.get_group_state(&current[0..index]) {
+                    Some(v) => v,
+                    None => return 0
+                };
+
+                let group_target = *line.broken_groups.get(group_index).unwrap_or(&0);
+                let key = PermutationsKey { index, group_index, current_group };
+
+                if let Some(cached) = cache.get(&key) {
+                    return *cached
+                }
 
                 // Note: we need a faster way to determine a combination isn't valid, brute forcing this takes too long
                 // (3 sec on test, not finished in 10 minutes on real input).
+                // Might actually be better to do depth-first and cache tail results based on (current_group, group_index, index)
 
                 // Options:
                 // - group_target is 0 (we already handled all groups), we can take a shortcut and add a permutation (all other fields will be working)
@@ -124,23 +127,30 @@ impl SpringLine {
                 // Only add broken springs if we need to fill a group, otherwise fill with working and check
                 let add_broken = group_target > 0 && (group_target > current_group || current_group == 0);
 
+                let mut operational = 0;
+                let mut broken = 0;
+
                 let mut next_group = current.clone();
+
                 if add_operational {
                     next_group[index] = Spring::Operational;
-                    queue.push_back(next_group.clone());
+                    operational = get_permutations(line, next_group.clone(), cache);
                 }
                 if add_broken {
                     next_group[index] = Spring::Broken;
-                    queue.push_back(next_group);
+                    broken = get_permutations(line, next_group.clone(), cache);
                 }
-            } else if Self::get_broken_groups(&current) == self.broken_groups {
-                permutations += 1;
+
+                cache.insert(key, operational + broken);
+                operational + broken
+            } else if SpringLine::get_broken_groups(&current) == line.broken_groups {
+                1
+            } else {
+                0
             }
         }
 
-        println!("Solved..., next");
-
-        permutations
+        get_permutations(self, self.springs.clone(), &mut cache)
     }
 
     fn unfold(&self) -> Self {
