@@ -5,7 +5,7 @@ use std::cmp::{max, Ordering};
 use std::collections::HashMap;
 use std::{cmp, fmt};
 use std::hash::Hash;
-use std::ops::{Add, RangeInclusive};
+use std::ops::{Add, RangeInclusive, Sub};
 use std::str::FromStr;
 use num_traits::abs;
 use crate::util::number;
@@ -33,6 +33,16 @@ impl Point {
 
     pub fn manhattan_distance(&self, other: &Point) -> isize {
         abs(self.x - other.x) + abs(self.y - other.y)
+    }
+
+    pub fn translate_in_direction(&self, directions: Directions, amount: usize) -> Self {
+        match directions {
+            Directions::Top => *self - (0isize, amount as isize),
+            Directions::Left => *self - (amount as isize, 0isize),
+            Directions::Bottom => *self + (0isize, amount as isize),
+            Directions::Right => *self + (amount as isize, 0isize),
+            _ => *self
+        }
     }
 }
 
@@ -116,6 +126,38 @@ impl Add<Point> for Vec<Point> {
 
     fn add(self, rhs: Point) -> Self::Output {
         self.iter().map(|p| rhs + p).collect()
+    }
+}
+
+impl Sub<&Point> for Point {
+    type Output = Point;
+
+    fn sub(self, rhs: &Point) -> Self::Output {
+        Point { x: self.x - rhs.x, y: self.y - rhs.y }
+    }
+}
+
+impl Sub<Point> for Point {
+    type Output = Point;
+
+    fn sub(self, rhs: Point) -> Self::Output {
+        self - &rhs
+    }
+}
+
+impl Sub<(isize, isize)> for Point {
+    type Output = Point;
+
+    fn sub(self, rhs: (isize, isize)) -> Self::Output {
+        self - Point::from(rhs)
+    }
+}
+
+impl Sub<Point> for Vec<Point> {
+    type Output = Vec<Point>;
+
+    fn sub(self, rhs: Point) -> Self::Output {
+        self.iter().map(|p| rhs - p).collect()
     }
 }
 
@@ -569,8 +611,16 @@ impl<T> Grid<T> where T: Clone {
         self.bounds.x().filter_map(|x| self.get(&Point::from((x, row)))).collect()
     }
 
+    pub fn rows(&self) -> Vec<Vec<T>> {
+        self.bounds.y().map(|row| self.get_row(row)).collect()
+    }
+
     pub fn get_column(&self, column: isize) -> Vec<T> {
         self.bounds.y().filter_map(|y| self.get(&Point::from((column, y)))).collect()
+    }
+
+    pub fn columns(&self) -> Vec<Vec<T>> {
+        self.bounds.x().map(|column| self.get_column(column)).collect()
     }
 
     pub fn get_adjacent(&self, p: &Point, directions: Directions) -> Vec<T> {
