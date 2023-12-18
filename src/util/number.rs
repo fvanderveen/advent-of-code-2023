@@ -4,27 +4,32 @@
 use num_traits::Num;
 
 macro_rules! parse_int_impl {
-    ($($t:ty, $name: ident)*) => {$(
+    ($($t:ty, $name: ident, $name_radix: ident)*) => {$(
         #[allow(unused)]
         pub fn $name(input: &str) -> Result<$t, String> {
             input.to_string().parse().map_err(|e| format!("{}", e))
+        }
+
+        #[allow(unused)]
+        pub fn $name_radix(input: &str, radix: u32) -> Result<$t, String> {
+            <$t>::from_str_radix(input, radix).map_err(|e| format!("{}", e))
         }
     )*}
 }
 
 parse_int_impl! {
-    u8, parse_u8
-    u16, parse_u16
-    u32, parse_u32
-    u64, parse_u64
-    u128, parse_u128
-    usize, parse_usize
-    i8, parse_i8
-    i16, parse_i16
-    i32, parse_i32
-    i64, parse_i64
-    i128, parse_i128
-    isize, parse_isize
+    u8, parse_u8, parse_u8_radix
+    u16, parse_u16, parse_u16_radix
+    u32, parse_u32, parse_u32_radix
+    u64, parse_u64, parse_u64_radix
+    u128, parse_u128, parse_u128_radix
+    usize, parse_usize, parse_usize_radix
+    i8, parse_i8, parse_i8_radix
+    i16, parse_i16, parse_i16_radix
+    i32, parse_i32, parse_i32_radix
+    i64, parse_i64, parse_i64_radix
+    i128, parse_i128, parse_i128_radix
+    isize, parse_isize, parse_isize_radix
 }
 
 pub fn parse_binary(binary: &str) -> usize {

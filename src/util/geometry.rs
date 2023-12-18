@@ -704,11 +704,11 @@ impl<T> fmt::Display for Grid<T> where T: fmt::Display + Clone {
             lines.push(line);
         }
 
-        let cell_width = lines.iter().map(|line| line.iter().map(|v| v.len()).max().unwrap_or(0)).max().unwrap_or(0);
+        let cell_width = lines.iter().map(|line| line.iter().map(|v| v.chars().count()).max().unwrap_or(0)).max().unwrap_or(0);
 
         let fill = f.fill().to_string();
         let formatted_lines: Vec<_> = lines.iter().map(|line| {
-            let formatted_line: Vec<_> = line.iter().map(|v| " ".repeat(cell_width - v.len()) + v).collect();
+            let formatted_line: Vec<_> = line.iter().map(|v| " ".repeat(cell_width - v.chars().count()) + v).collect();
             formatted_line.join(if f.align().is_some() { fill.as_str() } else { "" })
         }).collect();
 
