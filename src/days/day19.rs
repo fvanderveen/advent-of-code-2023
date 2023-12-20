@@ -16,7 +16,9 @@ fn puzzle1(input: &String) {
 }
 
 fn puzzle2(input: &String) {
-    todo!("Implement puzzle 2");
+    let system = WorkflowSystem::parse(input).unwrap();
+
+    println!("Distinct combinations of accepted gears: {}", system.get_accepted_combinations())
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -214,10 +216,12 @@ impl WorkflowSystem {
 
         follow_workflow(self, "in", &initial, &mut accepted_ranges);
 
-        println!("Accepted ranges:\n{}", accepted_ranges.iter().map(|r| format!("{:?}", r)).collect::<Vec<_>>().join("\n"));
+        // println!("Accepted ranges:\n{}", accepted_ranges.iter().cloned().map(|r| format!("{:?} => {}", r.clone(), r.x.count() * r.m.count() * r.a.count() * r.s.count())).collect::<Vec<_>>().join("\n"));
 
         // And now... how to make a number of accepted combinations from this result...?!
-        0
+        // For the test data, this results in separate ranges... I'm a bit worries about the real data, though.
+
+        accepted_ranges.iter().cloned().map(|r| r.x.count() * r.m.count() * r.a.count() * r.s.count()).sum()
     }
 }
 
