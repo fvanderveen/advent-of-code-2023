@@ -48,6 +48,7 @@ impl SignalSystem {
         self.signals.push_back(signal)
     }
 
+    #[cfg(test)]
     fn get_module(&self, module: &str) -> Option<&Module> {
         self.modules.iter().find(|m| m.get_name() == module)
     }

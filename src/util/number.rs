@@ -7,12 +7,12 @@ macro_rules! parse_int_impl {
     ($($t:ty, $name: ident, $name_radix: ident)*) => {$(
         #[allow(unused)]
         pub fn $name(input: &str) -> Result<$t, String> {
-            input.to_string().parse().map_err(|e| format!("{}", e))
+            input.to_string().parse().map_err(|e| format!("{} ('{}')", e, input))
         }
 
         #[allow(unused)]
         pub fn $name_radix(input: &str, radix: u32) -> Result<$t, String> {
-            <$t>::from_str_radix(input, radix).map_err(|e| format!("{}", e))
+            <$t>::from_str_radix(input, radix).map_err(|e| format!("{} ('{}')", e, input))
         }
     )*}
 }
