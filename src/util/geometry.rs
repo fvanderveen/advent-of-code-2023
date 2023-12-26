@@ -7,7 +7,7 @@ use std::{cmp, fmt};
 use std::hash::Hash;
 use std::ops::{Add, RangeInclusive, Sub};
 use std::str::FromStr;
-use num_traits::abs;
+use num_traits::{abs, Zero};
 use crate::util::number;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Default)]
@@ -72,7 +72,7 @@ impl FromStr for Point {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts_result: Result<Vec<isize>, String> = s.split(",").map(|p| number::parse_isize(p)).collect();
+        let parts_result: Result<Vec<isize>, String> = s.split(",").map(|p| number::parse_isize(p.trim())).collect();
         let parts = match parts_result {
             Ok(v) => v,
             Err(e) => return Err(e)
@@ -247,7 +247,7 @@ impl FromStr for Point3D {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let points = s.split(",").map(|p| number::parse_isize(p)).collect::<Result<Vec<isize>, String>>()?;
+        let points = s.split(",").map(|p| number::parse_isize(p.trim())).collect::<Result<Vec<isize>, String>>()?;
         if points.len() != 3 {
             Err(format!("Expected three coordinates, but got {}", points.len()))
         } else {
@@ -420,6 +420,22 @@ impl Line {
 
         points
     }
+
+    pub fn intersection(&self, other: &Self) -> Option<(f64, f64)> {
+        let (x1, y1) = (self.start.x as f64, self.start.y as f64);
+        let (x2, y2) = (self.end.x as f64, self.end.y as f64);
+        let (x3, y3) = (other.start.x as f64, other.start.y as f64);
+        let (x4, y4) = (other.end.x as f64, other.end.y as f64);
+
+        let denominator = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
+        if denominator.is_zero() {
+            None
+        } else {
+            let num_x = (((x1 * y2) - (y1 * x2)) * (x3 - x4)) - ((x1 - x2) * ((x3 * y4) - (y3 * x4)));
+            let num_y = (((x1 * y2) - (y1 * x2)) * (y3 - y4)) - ((y1 - y2) * ((x3 * y4) - (y3 * x4)));
+            Some((num_x/denominator, num_y/denominator))
+        }
+    }
 }
 
 
@@ -440,6 +456,21 @@ mod line_tests {
         assert_eq!(line(12, 0, 12, 6).get_points(), vec![point(12, 0), point(12, 1), point(12, 2), point(12, 3), point(12, 4), point(12, 5), point(12, 6)]);
         assert_eq!(line(2, 2, 4, 4).get_points(), vec![point(2, 2), point(3, 3), point(4, 4)]);
         assert_eq!(line(4, 0, 2, 0).get_points(), vec![point(4, 0), point(3, 0), point(2, 0)]);
+    }
+
+    #[test]
+    fn test_intersection() {
+        let a = line(19, 13, 17, 14);
+        let b = line(18, 19, 17, 18);
+        assert_eq!(a.intersection(&b), Some((14f64+(1f64/3f64), 15f64+(1f64/3f64))));
+        let b = line(20,25,18,23);
+        assert_eq!(a.intersection(&b), Some((11f64+(2f64/3f64), 16f64+(2f64/3f64))));
+
+        let a = line(18,19,17,18);
+        let b = line(12,31,11,29);
+        assert_eq!(a.intersection(&b), Some((-6f64, -5f64)));
+        let b = line(20,25,18,23);
+        assert_eq!(a.intersection(&b), None);
     }
 }
 
