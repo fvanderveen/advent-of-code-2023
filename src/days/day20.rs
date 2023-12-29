@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::str::FromStr;
 use crate::days::Day;
+use crate::util::number::lcm;
 
 pub const DAY20: Day = Day {
     puzzle1,
@@ -34,14 +35,18 @@ fn puzzle2(input: &String) {
 struct SignalSystem {
     modules: Vec<Module>,
     history: SignalHistory,
-    signals: VecDeque<Signal>,
-    outputs: HashMap<String, SignalState>
+    signals: VecDeque<Signal>
 }
 
 impl SignalSystem {
     fn press_button(&mut self) {
         self.queue_signal(Signal { source: "button".to_string(), destination: "broadcaster".to_string(), state: SignalState::Low });
-        self.process_queue();
+        self.process_queue(|_| {});
+    }
+
+    fn press_button_with_callback(&mut self, on_signal: impl FnMut(&Signal)) {
+        self.queue_signal(Signal { source: "button".to_string(), destination: "broadcaster".to_string(), state: SignalState::Low });
+        self.process_queue(on_signal);
     }
 
     fn queue_signal(&mut self, signal: Signal) {
@@ -57,7 +62,7 @@ impl SignalSystem {
         self.modules.iter_mut().find(|m| m.get_name() == module)
     }
 
-    fn process_queue(&mut self) {
+    fn process_queue(&mut self, mut on_signal: impl FnMut(&Signal)) {
         // Main loop, while there is a signal in the queue, we process it (resulting in possibly more signals in the queue)
         loop {
             if let Some(signal) = self.signals.pop_front() {
@@ -67,13 +72,13 @@ impl SignalSystem {
                     SignalState::High => self.history.high += 1,
                 }
 
+                on_signal(&signal);
+
                 // Find target module (an unknown module is considered output)
                 if let Some(target) = self.get_module_mut(&signal.destination) {
                     for signal in target.process(&signal) {
                         self.queue_signal(signal);
                     }
-                } else {
-                    self.outputs.insert(signal.destination.clone(), signal.state);
                 }
             } else {
                 return;
@@ -138,16 +143,53 @@ impl SignalSystem {
     fn button_presses_before_low_output(&mut self) -> usize {
         // Brute force (obviously) doesn't work. Can we reverse engineer what is needed to get a low signal?
         // No idea where to start, honestly.
+        // Chances exist we have mini-loops with the flip-flops, which would then mean we could count a LCM of all loops?
+
+        // Graphing shows we have four inputs (gr, ng, js, and lb)
+        // lb goes through a bunch of flip-flops all wired into &hl, which inverts in &mf
+        // js goes through a bunch of flip-flops wired into &lr, which inverts in &ss
+        // ng goes through a bunch of flip-flops wired into &sn, inverted by &fh
+        // gr goes through a bunch of flip-flips wired into &tf, inverted by &fz
+        // ss, fz, mf, and fh wire into &ql, which sends the rx signal.
+        // To get a _low_ rx signal, the ss, fz, mf, and fh signals need to be high
+        // As such, all loops would need to output a low at the same time (all flip-flops on)
+
+        // There is probably a way to determine this bit programmatically, fwiw. But knowing that, we can figure out
+        // the four loops (how many presses 'till the end conjunction sends a low signal), and then we just need to LCM those numbers.
+        // Note: unless wrong, I'm assuming the whole loop resets once the conjunction triggers.
 
         let mut presses = 0;
-        loop {
-            self.press_button();
-            presses += 1;
+        let mut ss_loop = None;
+        let mut fz_loop = None;
+        let mut mf_loop = None;
+        let mut fh_loop = None;
 
-            if self.outputs.get("rx").is_some_and(|s| SignalState::Low.eq(s)) {
-                return presses;
-            }
+        while ss_loop.and(fz_loop).and(mf_loop).and(fh_loop).is_none() {
+            presses += 1;
+            self.press_button_with_callback(|s| {
+                match (s.source.as_str(), s.state) {
+                    ("ss", SignalState::High) => {
+                        ss_loop = Some(presses);
+                        println!("Found high-output from ss after {} presses", presses);
+                    },
+                    ("fz", SignalState::High) => {
+                        fz_loop = Some(presses);
+                        println!("Found high-output from fz after {} presses", presses);
+                    },
+                    ("mf", SignalState::High) => {
+                        mf_loop = Some(presses);
+                        println!("Found high-output from mf after {} presses", presses);
+                    },
+                    ("fh", SignalState::High) => {
+                        fh_loop = Some(presses);
+                        println!("Found high-output from fh after {} presses", presses);
+                    },
+                    _ => {} // not interesting
+                }
+            });
         }
+
+        lcm(lcm(ss_loop.unwrap(), fz_loop.unwrap()), lcm(mf_loop.unwrap(), fh_loop.unwrap()))
     }
 }
 
@@ -337,7 +379,7 @@ mod tests {
         assert_eq!(system.history.low, 8);
         assert_eq!(system.history.high, 4);
         for flip in ["a", "b", "c"] {
-            let flop: FlipFlop = system.get_module(flip).and_then(|m| m.into()).unwrap();
+            let flop: &FlipFlop = system.get_module(flip).and_then(|m| m.into()).unwrap();
             assert_eq!(flop.state, SignalState::Low);
         }
 
@@ -346,36 +388,36 @@ mod tests {
 
         assert_eq!(system.history.low, 4);
         assert_eq!(system.history.high, 4);
-        let flop: FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::High);
-        let flop: FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::High);
 
         system.press_button();
 
         assert_eq!(system.history.low, 8);
         assert_eq!(system.history.high, 6);
-        let flop: FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::Low);
-        let flop: FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::High);
 
         system.press_button();
 
         assert_eq!(system.history.low, 13);
         assert_eq!(system.history.high, 9);
-        let flop: FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::High);
-        let flop: FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::Low);
 
         system.press_button();
 
         assert_eq!(system.history.low, 17);
         assert_eq!(system.history.high, 11);
-        let flop: FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("a").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::Low);
-        let flop: FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
+        let flop: &FlipFlop = system.get_module("b").and_then(|m| m.into()).unwrap();
         assert_eq!(flop.state, SignalState::Low);
     }
 
@@ -402,6 +444,12 @@ mod tests {
         &inv -> b\n\
         %b -> con\n\
         &con -> output\
+    ";
+
+    const DEBUG_SYSTEM: &str = "\
+        broadcaster -> gr\n\
+        %gr -> tf, cb
+        &tf -> cb, jg, fz, gr, zj, qn, kb
     ";
 }
 
@@ -451,23 +499,23 @@ impl FromStr for Module {
 
 impl Default for SignalSystem {
     fn default() -> Self {
-        Self { modules: vec![], history: SignalHistory::default(), signals: VecDeque::new(), outputs: HashMap::new() }
+        Self { modules: vec![], history: SignalHistory::default(), signals: VecDeque::new() }
     }
 }
 
-impl<'a> From<&Module> for Option<FlipFlop> {
-    fn from(module: &Module) -> Option<FlipFlop> {
+impl<'a> From<&'a Module> for Option<&'a FlipFlop> {
+    fn from(module: &'a Module) -> Option<&'a FlipFlop> {
         match module {
-            Module::FlipFlop(f) => Some(f.clone()),
+            Module::FlipFlop(f) => Some(f),
             _ => None
         }
     }
 }
 
-impl<'a> From<&Module> for Option<Conjunction> {
-    fn from(module: &Module) -> Option<Conjunction> {
+impl<'a> From<&'a Module> for Option<&'a Conjunction> {
+    fn from(module: &'a Module) -> Option<&'a Conjunction> {
         match module {
-            Module::Conjunction(c) => Some(c.clone()),
+            Module::Conjunction(c) => Some(c),
             _ => None
         }
     }
