@@ -445,12 +445,6 @@ mod tests {
         %b -> con\n\
         &con -> output\
     ";
-
-    const DEBUG_SYSTEM: &str = "\
-        broadcaster -> gr\n\
-        %gr -> tf, cb
-        &tf -> cb, jg, fz, gr, zj, qn, kb
-    ";
 }
 
 impl FromStr for SignalSystem {
